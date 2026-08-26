@@ -7,8 +7,8 @@ class UserBase(BaseModel):
     full_name: str
     phone_number: str
     email: Optional[str] = None
-    role: str = "cashier"  # super_admin, store_admin, cashier, stock_admin
-    shift: Optional[str] = "Morning Shift (06:30 AM - 03:00 PM)"
+    role: str = "store_admin"  # Default: store_admin (Store Owner), super_admin, cashier, stock_admin
+    shift: Optional[str] = "Store Manager (Full-Time)"
     avatar_index: int = 0
     store_id: Optional[int] = None
 
@@ -16,6 +16,10 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
     pin_code: Optional[str] = None
+    store_name: Optional[str] = None
+    store_branch: Optional[str] = "Main Branch"
+    business_type: Optional[str] = "Cafe & Beverage"
+    address: Optional[str] = None
 
 
 class StaffCreate(BaseModel):

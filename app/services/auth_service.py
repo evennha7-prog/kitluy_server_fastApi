@@ -84,6 +84,7 @@ class AuthService:
         store_owner = StoreOwner(
             user_id=created_user.id,
             store_id=store_resp.id,
+            tenant_id=store_resp.id,
             status="approved",
             business_type="Cafe & Beverage",
         )
@@ -105,23 +106,55 @@ class AuthService:
                 detail="Email is already registered",
             )
 
-        # Default store_id fallback to 1 if not specified
-        target_store_id = user_in.store_id or 1
+        # Default self-registration: Creates a new Store and provisions user as Store Owner
+        if user_in.store_id is None or user_in.role in ["store_admin", "store_owner"]:
+            store_service = StoreService(self.db)
+            store_name = user_in.store_name or f"{user_in.full_name}'s Store"
+            store_branch = user_in.store_branch or "Main Branch"
+            store_create = StoreCreate(
+                store_name=store_name,
+                store_branch=store_branch,
+                address=user_in.address,
+                currency_symbol="$",
+                exchange_rate_khr=4100.0,
+            )
+            store_resp = store_service.create_store(store_create)
+            target_store_id = store_resp.id
+            user_role = "store_admin"
+            is_store_owner = True
+        else:
+            target_store_id = user_in.store_id
+            user_role = user_in.role or "cashier"
+            is_store_owner = False
 
         hashed_password = get_password_hash(user_in.password)
         db_user = User(
             store_id=target_store_id,
+            tenant_id=target_store_id,
             full_name=user_in.full_name,
             phone_number=user_in.phone_number,
             email=user_in.email,
             hashed_password=hashed_password,
-            pin_code=user_in.pin_code,
-            role=user_in.role or "cashier",
-            shift=user_in.shift or "Morning Shift (06:30 AM - 03:00 PM)",
+            pin_code=user_in.pin_code or "1234",
+            role=user_role,
+            shift=user_in.shift or "Store Manager (Full-Time)" if is_store_owner else "Morning Shift",
             avatar_index=user_in.avatar_index or 0,
             is_active=True,
         )
         created_user = self.user_repo.create(db_user)
+
+        if is_store_owner:
+            from app.models.store_owner import StoreOwner
+            store_owner = StoreOwner(
+                user_id=created_user.id,
+                store_id=target_store_id,
+                tenant_id=target_store_id,
+                status="approved",
+                business_type=user_in.business_type or "Cafe & Beverage",
+            )
+            self.db.add(store_owner)
+            self.db.commit()
+
         return self._build_token_response(created_user)
 
     def login(self, login_data: LoginRequest) -> Token:

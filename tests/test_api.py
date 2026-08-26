@@ -305,3 +305,30 @@ def test_store_owner_approval_and_staff_link():
     assert "role_title" in links[0]
     assert "permissions" in links[0]
 
+
+def test_store_owner_self_registration():
+    # Test that when a new user registers by themselves, they default to Store Owner
+    reg_payload = {
+        "full_name": "Kirirom Coffee Owner",
+        "phone_number": "099 555 777",
+        "email": "kirirom@example.com",
+        "password": "password123",
+        "pin_code": "5678",
+        "store_name": "Kirirom Mountain Cafe",
+        "store_branch": "Kampong Speu",
+        "business_type": "Cafe & Beverage",
+    }
+    reg_resp = client.post(f"{settings.API_V1_STR}/auth/register", json=reg_payload)
+    assert reg_resp.status_code == 200
+    token_data = reg_resp.json()
+    assert token_data["role"] == "store_admin"
+    assert token_data["store_id"] is not None
+    assert token_data["user"]["full_name"] == "Kirirom Coffee Owner"
+
+    # Verify store products and categories can be queried immediately
+    headers = {"Authorization": f"Bearer {token_data['access_token']}"}
+    cat_resp = client.get(f"{settings.API_V1_STR}/categories", headers=headers)
+    assert cat_resp.status_code == 200
+    assert len(cat_resp.json()) >= 1
+
+
