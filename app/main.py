@@ -42,18 +42,18 @@ def _run_auto_migrations():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Create tables on startup
-    Base.metadata.create_all(bind=engine)
-    
-    # 2. Auto-migrate schema updates
-    _run_auto_migrations()
-    
-    # 3. Seed initial data
-    db = SessionLocal()
+    # 1. Create tables and seed initial data safely
     try:
-        seed_initial_data(db)
-    finally:
-        db.close()
+        Base.metadata.create_all(bind=engine)
+        _run_auto_migrations()
+        
+        db = SessionLocal()
+        try:
+            seed_initial_data(db)
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[Warning] Database initialization during startup skipped or failed: {e}")
     
     yield
 

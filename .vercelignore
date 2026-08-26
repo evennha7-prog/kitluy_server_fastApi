@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+.git/
+.gitignore
+*.db
+run.bat
+run.ps1
+pytest.ini
