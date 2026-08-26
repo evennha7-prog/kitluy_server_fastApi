@@ -9,6 +9,7 @@ class Supplier(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     store_id = Column(Integer, ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)
     name = Column(String(100), nullable=False, index=True)
     company_name = Column(String(150), nullable=True)
     phone = Column(String(50), nullable=False)

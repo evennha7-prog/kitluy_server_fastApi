@@ -9,6 +9,7 @@ class Category(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     store_id = Column(Integer, ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)
     name = Column(String(100), index=True, nullable=False)
     code = Column(String(50), index=True, nullable=False)  # coffee, tea_milk, bakery, beverages
     icon = Column(String(50), default="category")
@@ -28,6 +29,7 @@ class Product(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     store_id = Column(Integer, ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)
     name = Column(String(150), nullable=False, index=True)
     barcode = Column(String(100), index=True, nullable=False)
     category = Column(String(100), default="coffee", index=True)

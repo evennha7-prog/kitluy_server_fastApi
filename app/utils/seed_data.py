@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.core.security import get_password_hash
 from app.models.store import Store
 from app.models.user import User
+from app.models.store_owner import StoreOwner
+from app.models.staff_link import StaffLink
 from app.models.product import Product, Category
 from app.models.customer import Customer
 from app.models.supplier import Supplier
@@ -60,7 +62,8 @@ def seed_initial_data(db: Session):
         db.add(setting1)
 
     # 3. Seed Store 1 Users (Store Admin & Cashier)
-    if not db.query(User).filter(User.phone_number == "071 93 93 991").first():
+    admin1 = db.query(User).filter(User.phone_number == "071 93 93 991").first()
+    if not admin1:
         admin1 = User(
             store_id=store1.id,
             full_name="Prak Panha",
@@ -74,8 +77,24 @@ def seed_initial_data(db: Session):
             is_active=True,
         )
         db.add(admin1)
+        db.flush()
 
-    if not db.query(User).filter(User.phone_number == "012 888 999").first():
+    # Seed Store 1 StoreOwner record
+    owner1 = db.query(StoreOwner).filter(StoreOwner.user_id == admin1.id).first()
+    if not owner1:
+        owner1 = StoreOwner(
+            user_id=admin1.id,
+            store_id=store1.id,
+            status="approved",
+            business_type="Cafe & Beverage",
+            business_license="BL-2026-PP01",
+            approved_at=datetime.now(timezone.utc),
+        )
+        db.add(owner1)
+        db.flush()
+
+    cashier1 = db.query(User).filter(User.phone_number == "012 888 999").first()
+    if not cashier1:
         cashier1 = User(
             store_id=store1.id,
             full_name="Sophea Sok",
@@ -89,6 +108,19 @@ def seed_initial_data(db: Session):
             is_active=True,
         )
         db.add(cashier1)
+        db.flush()
+
+    # Seed Store 1 StaffLink record in staffs_link
+    if not db.query(StaffLink).filter(StaffLink.staff_user_id == cashier1.id).first():
+        link1 = StaffLink(
+            store_owner_id=owner1.id,
+            store_id=store1.id,
+            staff_user_id=cashier1.id,
+            role_title="Cashier",
+            permissions='["pos_sales", "discount"]',
+            is_active=True,
+        )
+        db.add(link1)
 
     # 4. Seed Store 1 Categories & Products
     categories_data = [
@@ -427,6 +459,19 @@ def seed_initial_data(db: Session):
             is_active=True,
         )
         db.add(admin2)
+        db.flush()
+
+        # Seed Store 2 StoreOwner record
+        owner2 = StoreOwner(
+            user_id=admin2.id,
+            store_id=store2.id,
+            status="approved",
+            business_type="Coffee & Bakery",
+            business_license="BL-2026-TK02",
+            approved_at=datetime.now(timezone.utc),
+        )
+        db.add(owner2)
+        db.flush()
 
         # Store 2 Cashier
         cashier2 = User(
@@ -442,6 +487,18 @@ def seed_initial_data(db: Session):
             is_active=True,
         )
         db.add(cashier2)
+        db.flush()
+
+        # Seed Store 2 StaffLink record in staffs_link
+        link2 = StaffLink(
+            store_owner_id=owner2.id,
+            store_id=store2.id,
+            staff_user_id=cashier2.id,
+            role_title="Cashier",
+            permissions='["pos_sales", "discount"]',
+            is_active=True,
+        )
+        db.add(link2)
 
         # Store 2 Categories & Sample Products
         cat_tk = Category(store_id=store2.id, name="Coffee", code="coffee", icon="local_cafe")
@@ -460,5 +517,46 @@ def seed_initial_data(db: Session):
             is_active=True,
         )
         db.add(prod_tk)
+
+    # 10. Seed Sample Pending Store Owner Application for Administrator Verification/Approval
+    pending_user = db.query(User).filter(User.phone_number == "097 888 123").first()
+    if not pending_user:
+        pending_store = Store(
+            store_code="STORE-003",
+            store_name="AudiCafe Express Sihanoukville",
+            store_branch="Ochheuteal Beach Outlet (SHV04)",
+            phone_number="097 888 123",
+            email="vicheka.keo@audicafe.com",
+            address="2 Thnou St, Sangkat 4, Preah Sihanouk",
+            currency_symbol="$",
+            exchange_rate_khr=4100.0,
+            is_active=False,  # inactive until approved by Administrator
+        )
+        db.add(pending_store)
+        db.flush()
+
+        pending_user = User(
+            store_id=pending_store.id,
+            full_name="Vicheka Keo",
+            phone_number="097 888 123",
+            email="vicheka.keo@audicafe.com",
+            hashed_password=get_password_hash("123456"),
+            pin_code="8888",
+            role="store_admin",
+            shift="Store Owner",
+            avatar_index=4,
+            is_active=False,  # inactive until approved by Administrator
+        )
+        db.add(pending_user)
+        db.flush()
+
+        pending_owner = StoreOwner(
+            user_id=pending_user.id,
+            store_id=pending_store.id,
+            status="pending",
+            business_type="Cafe & Beverage Bar",
+            business_license="BL-2026-SHV04",
+        )
+        db.add(pending_owner)
 
     db.commit()

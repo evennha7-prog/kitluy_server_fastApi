@@ -1,5 +1,7 @@
 from app.schemas.auth import Token, TokenPayload, LoginRequest, PinLoginRequest, ChangePasswordRequest
 from app.schemas.user import UserBase, UserCreate, UserUpdate, UserProfileUpdate, UserResponse
+from app.schemas.store_owner import StoreOwnerBase, StoreOwnerCreate, StoreOwnerRegister, StoreOwnerApproval, StoreOwnerUpdate, StoreOwnerResponse
+from app.schemas.staff_link import StaffLinkBase, StaffLinkCreate, StaffLinkUpdate, StaffLinkResponse
 from app.schemas.product import CategoryBase, CategoryCreate, CategoryResponse, ProductBase, ProductCreate, ProductUpdate, ProductResponse
 from app.schemas.sale import SaleItemCreate, SaleItemResponse, CheckoutRequest, SaleResponse
 from app.schemas.customer import CustomerBase, CustomerCreate, CustomerUpdate, CustomerResponse
@@ -20,6 +22,16 @@ __all__ = [
     "UserUpdate",
     "UserProfileUpdate",
     "UserResponse",
+    "StoreOwnerBase",
+    "StoreOwnerCreate",
+    "StoreOwnerRegister",
+    "StoreOwnerApproval",
+    "StoreOwnerUpdate",
+    "StoreOwnerResponse",
+    "StaffLinkBase",
+    "StaffLinkCreate",
+    "StaffLinkUpdate",
+    "StaffLinkResponse",
     "CategoryBase",
     "CategoryCreate",
     "CategoryResponse",

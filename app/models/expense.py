@@ -9,6 +9,7 @@ class Expense(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     store_id = Column(Integer, ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)
     title = Column(String(150), nullable=False)
     category = Column(String(100), default="Utilities")  # Utilities, Rent, Ingredients, Supplies, Salaries, Other
     amount = Column(Float, nullable=False)

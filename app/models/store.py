@@ -9,6 +9,7 @@ class Store(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     store_code = Column(String(50), unique=True, index=True, nullable=False)  # e.g., STORE-001, AUDI-PP
+    tenant_id = Column(String(50), index=True, nullable=True)  # Global Multi-tenant key
     store_name = Column(String(150), nullable=False, index=True)
     store_branch = Column(String(100), default="Main Branch")
     phone_number = Column(String(50), nullable=True)

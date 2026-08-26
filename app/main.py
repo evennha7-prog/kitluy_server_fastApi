@@ -23,18 +23,73 @@ from app.routers import (
 
 
 def _run_auto_migrations():
-    """Auto-migrate schema columns for existing database tables."""
+    """Auto-migrate schema columns for existing database tables to ensure tenant_id across all tables."""
+    tenant_tables = [
+        "users",
+        "store_owners",
+        "staffs_link",
+        "products",
+        "categories",
+        "sales",
+        "customers",
+        "suppliers",
+        "expenses",
+        "purchases",
+        "store_settings",
+    ]
     with engine.connect() as conn:
-        # Check and add 'color' column to 'products' table
+        # 1. Add color and category_id to products if missing
         try:
             conn.execute(text("ALTER TABLE products ADD COLUMN color VARCHAR(50) DEFAULT '#2E7D32';"))
             conn.commit()
         except Exception:
             pass
 
-        # Check and add 'category_id' column to 'products' table
         try:
             conn.execute(text("ALTER TABLE products ADD COLUMN category_id INT NULL;"))
+            conn.commit()
+        except Exception:
+            pass
+
+        # 2. Add tenant_id to all tenant-scoped tables
+        for table in tenant_tables:
+            try:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN tenant_id INT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text(f"UPDATE {table} SET tenant_id = store_id WHERE tenant_id IS NULL AND store_id IS NOT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+
+        # 3. Add store_id & tenant_id to sale_items and purchase_items
+        for item_table, parent_table, fk_col in [("sale_items", "sales", "sale_id"), ("purchase_items", "purchases", "purchase_id")]:
+            try:
+                conn.execute(text(f"ALTER TABLE {item_table} ADD COLUMN store_id INT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text(f"ALTER TABLE {item_table} ADD COLUMN tenant_id INT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text(f"UPDATE {item_table} it JOIN {parent_table} p ON it.{fk_col} = p.id SET it.store_id = p.store_id, it.tenant_id = p.store_id WHERE it.tenant_id IS NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+
+        # 4. Add tenant_id to stores table
+        try:
+            conn.execute(text("ALTER TABLE stores ADD COLUMN tenant_id VARCHAR(50) NULL;"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("UPDATE stores SET tenant_id = store_code WHERE tenant_id IS NULL;"))
             conn.commit()
         except Exception:
             pass

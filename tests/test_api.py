@@ -272,3 +272,36 @@ def test_store_settings_scoped():
     settings_data = response.json()
     assert settings_data["store_name"] == "AudiCafe"
     assert settings_data["store_id"] == 1
+
+
+def test_store_owner_approval_and_staff_link():
+    # 1. Login as Super Admin
+    admin_login = client.post(f"{settings.API_V1_STR}/auth/login", json={"identifier": "071 00 00 000", "password": "admin123"})
+    admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+    # 2. List Store Owners
+    owners_resp = client.get(f"{settings.API_V1_STR}/admin/store-owners", headers=admin_headers)
+    assert owners_resp.status_code == 200
+    owners = owners_resp.json()
+    assert len(owners) >= 2
+
+    # Check pending owners
+    pending = [o for o in owners if o["status"] == "pending"]
+    if pending:
+        target_owner = pending[0]
+        # 3. Super Admin Approves pending Store Owner
+        app_resp = client.post(f"{settings.API_V1_STR}/admin/store-owners/{target_owner['id']}/approve", headers=admin_headers)
+        assert app_resp.status_code == 200
+        assert app_resp.json()["status"] == "approved"
+
+    # 4. Store Admin 1 lists staff links in staffs_link table
+    login1 = client.post(f"{settings.API_V1_STR}/auth/login", json={"identifier": "071 93 93 991", "password": "123456"})
+    headers1 = {"Authorization": f"Bearer {login1.json()['access_token']}"}
+
+    staff_links_resp = client.get(f"{settings.API_V1_STR}/staff", headers=headers1)
+    assert staff_links_resp.status_code == 200
+    links = staff_links_resp.json()
+    assert len(links) >= 1
+    assert "role_title" in links[0]
+    assert "permissions" in links[0]
+

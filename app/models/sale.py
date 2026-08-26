@@ -9,6 +9,7 @@ class Sale(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     store_id = Column(Integer, ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)
     invoice_no = Column(String(50), index=True, nullable=False)
     cashier_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     cashier_name = Column(String(100), default="Cashier")
@@ -42,6 +43,8 @@ class SaleItem(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=False)
+    store_id = Column(Integer, nullable=True, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
     product_name = Column(String(150), nullable=False)
     barcode = Column(String(100), nullable=True)

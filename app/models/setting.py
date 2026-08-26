@@ -9,6 +9,7 @@ class StoreSetting(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     store_id = Column(Integer, ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)
     
     # Receipt Printer Settings
     printer_name = Column(String(100), default="Bluetooth 80mm POS Thermal")

@@ -11,6 +11,8 @@ from app.core.database import Base, engine, SessionLocal
 from app.models import (
     Store,
     User,
+    StoreOwner,
+    StaffLink,
     Product,
     Category,
     Sale,
@@ -49,6 +51,60 @@ def run_migration(reset: bool = False):
         print("[+] Creating all database tables with SaaS Multi-Tenant schema...")
         Base.metadata.create_all(bind=conn)
         conn.commit()
+
+        print("[+] Ensuring `tenant_id` column exists across all database tables...")
+        tenant_tables = [
+            "users",
+            "store_owners",
+            "staffs_link",
+            "products",
+            "categories",
+            "sales",
+            "customers",
+            "suppliers",
+            "expenses",
+            "purchases",
+            "store_settings",
+        ]
+        for table in tenant_tables:
+            try:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN tenant_id INT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text(f"UPDATE {table} SET tenant_id = store_id WHERE tenant_id IS NULL AND store_id IS NOT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+
+        for item_table, parent_table, fk_col in [("sale_items", "sales", "sale_id"), ("purchase_items", "purchases", "purchase_id")]:
+            try:
+                conn.execute(text(f"ALTER TABLE {item_table} ADD COLUMN store_id INT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text(f"ALTER TABLE {item_table} ADD COLUMN tenant_id INT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+            try:
+                conn.execute(text(f"UPDATE {item_table} it JOIN {parent_table} p ON it.{fk_col} = p.id SET it.store_id = p.store_id, it.tenant_id = p.store_id WHERE it.tenant_id IS NULL;"))
+                conn.commit()
+            except Exception:
+                pass
+
+        try:
+            conn.execute(text("ALTER TABLE stores ADD COLUMN tenant_id VARCHAR(50) NULL;"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(text("UPDATE stores SET tenant_id = store_code WHERE tenant_id IS NULL;"))
+            conn.commit()
+        except Exception:
+            pass
     
     inspector = sqlalchemy.inspect(engine)
     tables = inspector.get_table_names()

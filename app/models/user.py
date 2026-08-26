@@ -9,6 +9,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     store_id = Column(Integer, ForeignKey("stores.id", ondelete="CASCADE"), nullable=True, index=True)
+    tenant_id = Column(Integer, nullable=True, index=True)
     full_name = Column(String(100), nullable=False)
     phone_number = Column(String(30), unique=True, index=True, nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=True)

@@ -78,6 +78,18 @@ class AuthService:
             is_active=True,
         )
         created_user = self.user_repo.create(db_user)
+
+        # 3. Create StoreOwner profile in store_owners table
+        from app.models.store_owner import StoreOwner
+        store_owner = StoreOwner(
+            user_id=created_user.id,
+            store_id=store_resp.id,
+            status="approved",
+            business_type="Cafe & Beverage",
+        )
+        self.db.add(store_owner)
+        self.db.commit()
+
         return self._build_token_response(created_user)
 
     def register(self, user_in: UserCreate) -> Token:
