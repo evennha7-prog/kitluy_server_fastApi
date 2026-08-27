@@ -1,15 +1,14 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
 from app.core.database import Base
 
 
 class UserInvoiceTemplate(Base):
-    __tablename__ = "user_invoice_templates"
+    __tablename__ = "invoice_templete"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
-    store_id = Column(Integer, ForeignKey("stores.id", ondelete="CASCADE"), nullable=True, index=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    store_id = Column(Integer, nullable=True, index=True)
     tenant_id = Column(Integer, nullable=True, index=True)
 
     # Style & Paper Format
@@ -47,6 +46,3 @@ class UserInvoiceTemplate(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
-
-    user = relationship("User", foreign_keys=[user_id])
-    store = relationship("Store", foreign_keys=[store_id])

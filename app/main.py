@@ -37,9 +37,43 @@ def _run_auto_migrations():
         "expenses",
         "purchases",
         "store_settings",
+        "invoice_templete",
         "user_invoice_templates",
     ]
     with engine.connect() as conn:
+        # Create invoice_templete table if missing
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS invoice_templete (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NULL,
+                    store_id INT NULL,
+                    tenant_id INT NULL,
+                    style VARCHAR(50) DEFAULT 'minimal',
+                    paper_size VARCHAR(20) DEFAULT '80mm',
+                    store_name VARCHAR(255) DEFAULT 'KITLUY Coffee & Bakery',
+                    branch_name VARCHAR(255) DEFAULT 'Main Branch',
+                    phone_number VARCHAR(100) DEFAULT '097 534 8338 / 012 345 678',
+                    address VARCHAR(255) DEFAULT '#128 St 2004, Phnom Penh',
+                    vat_tin VARCHAR(100) DEFAULT 'K001-902345890',
+                    header_message TEXT NULL,
+                    footer_message TEXT NULL,
+                    wifi_info VARCHAR(255) DEFAULT 'Wi-Fi: KITLUY_GUEST / Pass: 88888888',
+                    show_logo BOOLEAN DEFAULT TRUE,
+                    show_khqr BOOLEAN DEFAULT TRUE,
+                    show_barcode BOOLEAN DEFAULT TRUE,
+                    show_cashier BOOLEAN DEFAULT TRUE,
+                    show_table_num BOOLEAN DEFAULT TRUE,
+                    show_exchange_rate BOOLEAN DEFAULT TRUE,
+                    show_vat_details BOOLEAN DEFAULT TRUE,
+                    show_wifi_info BOOLEAN DEFAULT TRUE,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            conn.commit()
+        except Exception:
+            pass
         # 1. Add color and category_id to products if missing
         try:
             conn.execute(text("ALTER TABLE products ADD COLUMN color VARCHAR(50) DEFAULT '#2E7D32';"))
