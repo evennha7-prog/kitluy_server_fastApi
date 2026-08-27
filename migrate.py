@@ -96,6 +96,12 @@ def run_migration(reset: bool = False):
                 pass
 
         try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN telegram_username VARCHAR(100) NULL;"))
+            conn.commit()
+        except Exception:
+            pass
+
+        try:
             conn.execute(text("ALTER TABLE stores ADD COLUMN tenant_id VARCHAR(50) NULL;"))
             conn.commit()
         except Exception:

@@ -523,10 +523,10 @@ def seed_initial_data(db: Session):
         )
         db.add(prod_tk)
 
-    # 10. Seed Sample Pending Store Owner Application for Administrator Verification/Approval
-    pending_user = db.query(User).filter(User.phone_number == "097 888 123").first()
-    if not pending_user:
-        pending_store = Store(
+    # 10. Seed Sample Pending Store Owner Applications for Administrator Verification/Approval
+    pending_user1 = db.query(User).filter(User.phone_number == "097 888 123").first()
+    if not pending_user1:
+        pending_store1 = Store(
             store_code="STORE-003",
             store_name="AudiCafe Express Sihanoukville",
             store_branch="Ochheuteal Beach Outlet (SHV04)",
@@ -537,14 +537,16 @@ def seed_initial_data(db: Session):
             exchange_rate_khr=4100.0,
             is_active=False,  # inactive until approved by Administrator
         )
-        db.add(pending_store)
+        db.add(pending_store1)
         db.flush()
 
-        pending_user = User(
-            store_id=pending_store.id,
+        pending_user1 = User(
+            store_id=pending_store1.id,
+            tenant_id=pending_store1.id,
             full_name="Vicheka Keo",
             phone_number="097 888 123",
             email="vicheka.keo@audicafe.com",
+            telegram_username="@vichekakeo",
             hashed_password=get_password_hash("123456"),
             pin_code="8888",
             role="store_admin",
@@ -552,16 +554,103 @@ def seed_initial_data(db: Session):
             avatar_index=4,
             is_active=False,  # inactive until approved by Administrator
         )
-        db.add(pending_user)
+        db.add(pending_user1)
         db.flush()
 
-        pending_owner = StoreOwner(
-            user_id=pending_user.id,
-            store_id=pending_store.id,
+        pending_owner1 = StoreOwner(
+            user_id=pending_user1.id,
+            store_id=pending_store1.id,
+            tenant_id=pending_store1.id,
             status="pending",
             business_type="Cafe & Beverage Bar",
             business_license="BL-2026-SHV04",
         )
-        db.add(pending_owner)
+        db.add(pending_owner1)
+
+    pending_user2 = db.query(User).filter(User.phone_number == "012 776 543").first()
+    if not pending_user2:
+        pending_store2 = Store(
+            store_code="STORE-004",
+            store_name="Brown & Green Organic Roasters",
+            store_branch="Kampot Riverside (KP01)",
+            phone_number="012 776 543",
+            email="sophal.rath@browngreen.kh",
+            address="Riverside Rd, Krong Kampot",
+            currency_symbol="$",
+            exchange_rate_khr=4100.0,
+            is_active=False,
+        )
+        db.add(pending_store2)
+        db.flush()
+
+        pending_user2 = User(
+            store_id=pending_store2.id,
+            tenant_id=pending_store2.id,
+            full_name="Sophal Rath",
+            phone_number="012 776 543",
+            email="sophal.rath@browngreen.kh",
+            telegram_username="@sophal_coffee",
+            hashed_password=get_password_hash("123456"),
+            pin_code="5555",
+            role="store_admin",
+            shift="Store Owner",
+            avatar_index=5,
+            is_active=False,
+        )
+        db.add(pending_user2)
+        db.flush()
+
+        pending_owner2 = StoreOwner(
+            user_id=pending_user2.id,
+            store_id=pending_store2.id,
+            tenant_id=pending_store2.id,
+            status="pending",
+            business_type="Specialty Coffee & Roastery",
+            business_license="BL-2026-KP01",
+        )
+        db.add(pending_owner2)
+
+    pending_user3 = db.query(User).filter(User.phone_number == "085 224 466").first()
+    if not pending_user3:
+        pending_store3 = Store(
+            store_code="STORE-005",
+            store_name="Phnom Penh Artisan Bakery & Tea",
+            store_branch="Tuol Tompoung Russian Market (TTP02)",
+            phone_number="085 224 466",
+            email="kanika.artisan@gmail.com",
+            address="St 450, Tuol Tompoung 1, Phnom Penh",
+            currency_symbol="$",
+            exchange_rate_khr=4100.0,
+            is_active=False,
+        )
+        db.add(pending_store3)
+        db.flush()
+
+        pending_user3 = User(
+            store_id=pending_store3.id,
+            tenant_id=pending_store3.id,
+            full_name="Kanika Meng",
+            phone_number="085 224 466",
+            email="kanika.artisan@gmail.com",
+            telegram_username="@kanika_bakery",
+            hashed_password=get_password_hash("123456"),
+            pin_code="7777",
+            role="store_admin",
+            shift="Store Owner",
+            avatar_index=6,
+            is_active=False,
+        )
+        db.add(pending_user3)
+        db.flush()
+
+        pending_owner3 = StoreOwner(
+            user_id=pending_user3.id,
+            store_id=pending_store3.id,
+            tenant_id=pending_store3.id,
+            status="pending",
+            business_type="Bakery & Milk Tea",
+            business_license="BL-2026-TTP02",
+        )
+        db.add(pending_owner3)
 
     db.commit()

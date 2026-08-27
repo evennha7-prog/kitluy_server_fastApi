@@ -83,7 +83,6 @@ def create_staff(
         store_owner = StoreOwner(
             user_id=current_admin.id,
             store_id=store_id,
-            tenant_id=store_id,
             status="approved",
             business_type="Cafe & Beverage",
         )
@@ -91,19 +90,15 @@ def create_staff(
         db.flush()
 
     # 1. Create Staff User
-    raw_password = staff_in.password or "123456"
-    hashed = get_password_hash(raw_password)
-    user_role = "store_admin" if "manager" in (staff_in.role_title or "").lower() else "cashier"
-
+    hashed = get_password_hash(staff_in.password)
     user = User(
         store_id=store_id,
-        tenant_id=store_id,
         full_name=staff_in.full_name,
         phone_number=staff_in.phone_number,
         email=staff_in.email,
         hashed_password=hashed,
         pin_code=staff_in.pin_code or "0000",
-        role=user_role,
+        role="cashier",
         shift=staff_in.shift or "Morning Shift (06:30 AM - 03:00 PM)",
         avatar_index=staff_in.avatar_index,
         is_active=staff_in.is_active,
@@ -115,7 +110,6 @@ def create_staff(
     staff_link = StaffLink(
         store_owner_id=store_owner.id,
         store_id=store_id,
-        tenant_id=store_id,
         staff_user_id=user.id,
         role_title=staff_in.role_title or "Cashier",
         permissions=staff_in.permissions or '["pos_sales", "discount"]',

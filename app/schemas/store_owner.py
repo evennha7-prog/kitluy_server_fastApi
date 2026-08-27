@@ -56,8 +56,10 @@ class StoreOwnerResponse(BaseModel):
     owner_name: Optional[str] = None
     owner_phone: Optional[str] = None
     owner_email: Optional[str] = None
+    owner_telegram: Optional[str] = None
     store_name: Optional[str] = None
     store_branch: Optional[str] = None
+    address: Optional[str] = None
     staff_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)

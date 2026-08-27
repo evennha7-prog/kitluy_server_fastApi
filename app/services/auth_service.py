@@ -122,7 +122,7 @@ class AuthService:
             target_store_id = store_resp.id
             user_role = "store_admin"
             is_store_owner = True
-            is_active_initial = True
+            is_active_initial = False
         else:
             target_store_id = user_in.store_id
             user_role = user_in.role or "cashier"
@@ -151,9 +151,8 @@ class AuthService:
                 user_id=created_user.id,
                 store_id=target_store_id,
                 tenant_id=target_store_id,
-                status="approved",
+                status="pending",
                 business_type=user_in.business_type or "Cafe & Beverage",
-                approved_at=datetime.now(timezone.utc),
             )
             self.db.add(store_owner)
             self.db.commit()
@@ -174,20 +173,23 @@ class AuthService:
                 if owner.status == "pending":
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail="គណនីហាងរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Administrator (Your store application is pending approval)",
+                        detail="គណនីរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Administrator សូមទាក់ទង Telegram: @cpanha14 ដើម្បីអនុម័ត (Account pending approval. Contact Telegram: @cpanha14)",
                     )
                 elif owner.status == "rejected":
                     reason = f": {owner.rejection_reason}" if owner.rejection_reason else ""
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"គណនីហាងរបស់អ្នកត្រូវបានបដិសេធ (Store registration rejected{reason})",
+                        detail=f"គណនីហាងរបស់អ្នកត្រូវបានបដិសេធ{reason} សូមទាក់ទង Telegram: @cpanha14 (Account rejected. Contact Telegram: @cpanha14)",
                     )
                 elif owner.status == "suspended":
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail="គណនីហាងត្រូវបានផ្អាកដំណើរការ (Store account is suspended)",
+                        detail="គណនីហាងត្រូវបានផ្អាកដំណើរការ សូមទាក់ទង Telegram: @cpanha14 (Account suspended. Contact Telegram: @cpanha14)",
                     )
-            raise HTTPException(status_code=400, detail="Account is disabled")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="គណនីរបស់អ្នកមិនទាន់បើកដំណើរការទេ សូមទាក់ទង Telegram: @cpanha14 (Account inactive. Contact Telegram: @cpanha14)",
+            )
 
         return self._build_token_response(user)
 

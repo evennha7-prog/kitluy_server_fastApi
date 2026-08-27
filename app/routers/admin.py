@@ -104,8 +104,10 @@ def list_store_owners(
                 owner_name=o.user.full_name if o.user else None,
                 owner_phone=o.user.phone_number if o.user else None,
                 owner_email=o.user.email if o.user else None,
+                owner_telegram=o.user.telegram_username if o.user else None,
                 store_name=o.store.store_name if o.store else None,
                 store_branch=o.store.store_branch if o.store else None,
+                address=o.store.address if o.store else None,
                 staff_count=staff_count,
             )
         )
@@ -232,8 +234,10 @@ def approve_store_owner(
         owner_name=owner.user.full_name if owner.user else None,
         owner_phone=owner.user.phone_number if owner.user else None,
         owner_email=owner.user.email if owner.user else None,
+        owner_telegram=owner.user.telegram_username if owner.user else None,
         store_name=owner.store.store_name if owner.store else None,
         store_branch=owner.store.store_branch if owner.store else None,
+        address=owner.store.address if owner.store else None,
         staff_count=staff_count,
     )
 
@@ -282,8 +286,10 @@ def reject_store_owner(
         owner_name=owner.user.full_name if owner.user else None,
         owner_phone=owner.user.phone_number if owner.user else None,
         owner_email=owner.user.email if owner.user else None,
+        owner_telegram=owner.user.telegram_username if owner.user else None,
         store_name=owner.store.store_name if owner.store else None,
         store_branch=owner.store.store_branch if owner.store else None,
+        address=owner.store.address if owner.store else None,
         staff_count=staff_count,
     )
 
