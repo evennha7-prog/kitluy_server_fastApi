@@ -357,3 +357,48 @@ def test_store_owner_self_registration():
     assert len(cat_resp.json()) >= 1
 
 
+def test_user_invoice_template():
+    # Login as Store Admin 1
+    login_resp = client.post(
+        f"{settings.API_V1_STR}/auth/login",
+        json={"identifier": "071 93 93 991", "password": "123456"},
+    )
+    assert login_resp.status_code == 200
+    token = login_resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. GET Invoice Template
+    get_resp = client.get(f"{settings.API_V1_STR}/invoice-template", headers=headers)
+    assert get_resp.status_code == 200
+    template = get_resp.json()
+    assert "store_name" in template
+    assert "paper_size" in template
+    assert "style" in template
+
+    # 2. PUT Update Invoice Template
+    update_payload = {
+        "store_name": "AudiCafe Specialty",
+        "branch_name": "Russian Market",
+        "paper_size": "58mm",
+        "style": "cafeClassic",
+        "header_message": "Welcome to AudiCafe!",
+        "footer_message": "See you again!",
+        "show_khqr": True,
+        "show_logo": True,
+    }
+    put_resp = client.put(f"{settings.API_V1_STR}/invoice-template", json=update_payload, headers=headers)
+    assert put_resp.status_code == 200
+    updated = put_resp.json()
+    assert updated["store_name"] == "AudiCafe Specialty"
+    assert updated["branch_name"] == "Russian Market"
+    assert updated["paper_size"] == "58mm"
+    assert updated["style"] == "cafeClassic"
+
+    # 3. POST Reset Invoice Template
+    reset_resp = client.post(f"{settings.API_V1_STR}/invoice-template/reset", headers=headers)
+    assert reset_resp.status_code == 200
+    reset_tpl = reset_resp.json()
+    assert reset_tpl["paper_size"] == "80mm"
+
+
+

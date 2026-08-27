@@ -10,6 +10,7 @@ from app.routers.expenses import router as expenses_router
 from app.routers.purchases import router as purchases_router
 from app.routers.settings import router as settings_router
 from app.routers.staff import router as staff_router
+from app.routers.invoice_templates import router as invoice_templates_router
 
 __all__ = [
     "admin_router",
@@ -24,4 +25,5 @@ __all__ = [
     "purchases_router",
     "settings_router",
     "staff_router",
+    "invoice_templates_router",
 ]

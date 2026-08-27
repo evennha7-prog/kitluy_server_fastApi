@@ -13,23 +13,33 @@ class SettingService:
         self.store_repo = StoreRepository(db)
 
     def get_settings(self, store_id: int) -> StoreSettingResponse:
-        settings = self.repo.get_settings(store_id=store_id)
         store = self.store_repo.get_by_id(store_id)
-        if not settings:
-            # Create default setting if missing
-            settings = StoreSetting(
-                store_id=store_id,
-                printer_name="Bluetooth 80mm POS Thermal",
-                printer_paper_width=80,
-                auto_print_receipt=True,
-                sound_alert=True,
-                receipt_header=f"Welcome to {store.store_name if store else 'POS'}",
-                receipt_footer="Thank you for your visit! Please come again.",
-            )
-            settings = self.repo.create(settings)
+        if not store:
+            stores = self.store_repo.get_all()
+            if stores:
+                store = stores[0]
+                store_id = store.id
+
+        settings = self.repo.get_settings(store_id=store_id)
+        if not settings and store_id:
+            try:
+                # Create default setting if missing
+                settings = StoreSetting(
+                    store_id=store_id,
+                    printer_name="Bluetooth 80mm POS Thermal",
+                    printer_paper_width=80,
+                    auto_print_receipt=True,
+                    sound_alert=True,
+                    receipt_header=f"Welcome to {store.store_name if store else 'POS'}",
+                    receipt_footer="Thank you for your visit! Please come again.",
+                )
+                settings = self.repo.create(settings)
+            except Exception:
+                self.db.rollback()
+                settings = self.repo.get_settings(store_id=store_id)
 
         return StoreSettingResponse(
-            id=settings.id,
+            id=settings.id if settings else 1,
             store_id=store_id,
             store_name=store.store_name if store else "POS Store",
             store_branch=store.store_branch if store else "Main Branch",
@@ -39,21 +49,31 @@ class SettingService:
             currency_symbol=store.currency_symbol if store else "$",
             exchange_rate_khr=store.exchange_rate_khr if store else 4100.0,
             tax_rate=0.0,
-            printer_name=settings.printer_name,
-            printer_paper_width=settings.printer_paper_width,
-            auto_print_receipt=settings.auto_print_receipt,
-            sound_alert=settings.sound_alert,
-            receipt_header=settings.receipt_header,
-            receipt_footer=settings.receipt_footer,
-            telegram_alerts_enabled=settings.telegram_alerts_enabled,
+            printer_name=settings.printer_name if settings else "Bluetooth 80mm POS Thermal",
+            printer_paper_width=settings.printer_paper_width if settings else 80,
+            auto_print_receipt=settings.auto_print_receipt if settings else True,
+            sound_alert=settings.sound_alert if settings else True,
+            receipt_header=settings.receipt_header if settings else "Welcome to POS",
+            receipt_footer=settings.receipt_footer if settings else "Thank you for your visit! Please come again.",
+            telegram_alerts_enabled=settings.telegram_alerts_enabled if settings else False,
         )
 
     def update_settings(self, store_id: int, update_in: StoreSettingUpdate) -> StoreSettingResponse:
-        settings = self.repo.get_settings(store_id=store_id)
         store = self.store_repo.get_by_id(store_id)
-        if not settings:
-            settings = StoreSetting(store_id=store_id)
-            settings = self.repo.create(settings)
+        if not store:
+            stores = self.store_repo.get_all()
+            if stores:
+                store = stores[0]
+                store_id = store.id
+
+        settings = self.repo.get_settings(store_id=store_id)
+        if not settings and store_id:
+            try:
+                settings = StoreSetting(store_id=store_id)
+                settings = self.repo.create(settings)
+            except Exception:
+                self.db.rollback()
+                settings = self.repo.get_settings(store_id=store_id)
 
         # Update store properties if provided
         if store:

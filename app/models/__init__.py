@@ -9,6 +9,7 @@ from app.models.supplier import Supplier
 from app.models.expense import Expense
 from app.models.purchase import Purchase, PurchaseItem
 from app.models.setting import StoreSetting
+from app.models.invoice_template import UserInvoiceTemplate
 
 __all__ = [
     "Store",
@@ -25,4 +26,5 @@ __all__ = [
     "Purchase",
     "PurchaseItem",
     "StoreSetting",
+    "UserInvoiceTemplate",
 ]

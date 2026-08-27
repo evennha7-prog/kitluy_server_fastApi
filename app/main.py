@@ -19,6 +19,7 @@ from app.routers import (
     purchases_router,
     settings_router,
     staff_router,
+    invoice_templates_router,
 )
 
 
@@ -36,6 +37,7 @@ def _run_auto_migrations():
         "expenses",
         "purchases",
         "store_settings",
+        "user_invoice_templates",
     ]
     with engine.connect() as conn:
         # 1. Add color and category_id to products if missing
@@ -151,6 +153,7 @@ app.include_router(expenses_router, prefix=settings.API_V1_STR)
 app.include_router(purchases_router, prefix=settings.API_V1_STR)
 app.include_router(settings_router, prefix=settings.API_V1_STR)
 app.include_router(staff_router, prefix=settings.API_V1_STR)
+app.include_router(invoice_templates_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/", tags=["Health"])
