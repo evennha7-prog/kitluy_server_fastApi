@@ -49,8 +49,15 @@ class ProductService:
         if existing:
             raise HTTPException(status_code=400, detail="Barcode already assigned to another item in this store")
 
+        valid_cat_id = None
+        if product_in.category_id and product_in.category_id > 0:
+            cat = self.db.query(Category).filter(Category.id == product_in.category_id, Category.store_id == store_id).first()
+            if cat:
+                valid_cat_id = cat.id
+
         product = Product(
             store_id=store_id,
+            tenant_id=store_id,
             name=product_in.name,
             barcode=barcode,
             category=product_in.category or "coffee",
@@ -60,7 +67,7 @@ class ProductService:
             color=product_in.color or "#2E7D32",
             image_url=product_in.image_url,
             description=product_in.description,
-            category_id=product_in.category_id,
+            category_id=valid_cat_id,
             is_active=True,
         )
         created = self.product_repo.create(product)
@@ -95,7 +102,12 @@ class ProductService:
         if product_in.is_active is not None:
             product.is_active = product_in.is_active
         if product_in.category_id is not None:
-            product.category_id = product_in.category_id
+            valid_cat_id = None
+            if product_in.category_id > 0:
+                cat = self.db.query(Category).filter(Category.id == product_in.category_id, Category.store_id == store_id).first()
+                if cat:
+                    valid_cat_id = cat.id
+            product.category_id = valid_cat_id
 
         updated = self.product_repo.update(product)
         return ProductResponse.model_validate(updated)

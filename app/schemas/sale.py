@@ -24,13 +24,17 @@ class SaleItemResponse(BaseModel):
 
 
 class CheckoutRequest(BaseModel):
-    cashier_name: Optional[str] = "Prak Panha"
+    cashier_name: Optional[str] = "Cashier"
     customer_name: Optional[str] = "General Customer"
     customer_phone: Optional[str] = None
     items: List[SaleItemCreate]
     payment_method: str = "CASH"  # CASH, ABA_KHQR, CARD
     discount: Optional[float] = 0.0
+    discount_amount: Optional[float] = 0.0
     tax: Optional[float] = 0.0
+    tax_amount: Optional[float] = 0.0
+    total_amount: Optional[float] = None
+    final_amount: Optional[float] = None
     note: Optional[str] = None
 
 

@@ -22,7 +22,14 @@ class SaleService:
     def _generate_invoice_no(self, store_id: int) -> str:
         today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
         count = self.sale_repo.count_sales(store_id=store_id) + 1
-        return f"INV-{today_str}-{count:04d}"
+        candidate = f"INV-{today_str}-{count:04d}"
+
+        # Prevent any duplicate invoice collision
+        while self.sale_repo.get_by_invoice(candidate, store_id=store_id) is not None:
+            count += 1
+            candidate = f"INV-{today_str}-{count:04d}"
+
+        return candidate
 
     def checkout(self, req: CheckoutRequest, store_id: int, cashier_user=None) -> SaleResponse:
         if not req.items:
@@ -50,7 +57,9 @@ class SaleService:
 
             sale_items.append(
                 SaleItem(
-                    product_id=product.id if product else item_in.product_id,
+                    store_id=store_id,
+                    tenant_id=store_id,
+                    product_id=product.id if product else None,
                     product_name=item_in.product_name,
                     barcode=item_in.barcode or (product.barcode if product else None),
                     unit_price=unit_price,
@@ -59,8 +68,8 @@ class SaleService:
                 )
             )
 
-        discount = req.discount or 0.0
-        tax = req.tax or 0.0
+        discount = req.discount or req.discount_amount or 0.0
+        tax = req.tax or req.tax_amount or 0.0
         total_amount = max(0.0, subtotal - discount + tax)
 
         # Customer association
@@ -70,9 +79,9 @@ class SaleService:
             customer = self.customer_repo.get_by_phone(req.customer_phone, store_id=store_id)
             if customer:
                 customer_id = customer.id
-                customer.total_orders += 1
-                customer.total_spent += total_amount
-                customer.points += int(total_amount)
+                customer.total_orders = (customer.total_orders or 0) + 1
+                customer.total_spent = (customer.total_spent or 0.0) + total_amount
+                customer.points = (customer.points or 0) + int(total_amount)
                 self.customer_repo.update(customer)
 
         cashier_id = cashier_user.id if cashier_user else None
@@ -80,6 +89,7 @@ class SaleService:
 
         sale = Sale(
             store_id=store_id,
+            tenant_id=store_id,
             invoice_no=self._generate_invoice_no(store_id=store_id),
             cashier_id=cashier_id,
             cashier_name=cashier_name,
