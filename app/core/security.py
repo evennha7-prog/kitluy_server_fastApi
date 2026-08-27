@@ -134,10 +134,10 @@ def get_current_store_admin(current_user = Depends(get_current_user)):
 
 
 def get_current_super_admin(current_user = Depends(get_current_user)):
-    if current_user.role != "super_admin":
+    if current_user.role not in ["super_admin", "admin", "store_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access forbidden: Requires Super Administrator privileges",
+            detail="Access forbidden: Requires Administrator privileges",
         )
     return current_user
 
