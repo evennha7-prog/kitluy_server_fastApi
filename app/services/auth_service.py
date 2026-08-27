@@ -243,7 +243,17 @@ class AuthService:
                 detail="Invalid cashier PIN",
             )
         if not user.is_active:
-            raise HTTPException(status_code=400, detail="Account is disabled")
+            from app.models.store_owner import StoreOwner
+            owner = self.db.query(StoreOwner).filter(StoreOwner.user_id == user.id).first()
+            if owner and owner.status == "pending":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="គណនីរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Administrator សូមទាក់ទង Telegram: @cpanha14 ដើម្បីអនុម័ត (Account pending approval. Contact Telegram: @cpanha14)",
+                )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="គណនីរបស់អ្នកមិនទាន់បើកដំណើរការទេ សូមទាក់ទង Telegram: @cpanha14 (Account inactive / disabled. Contact Telegram: @cpanha14)",
+            )
 
         return self._build_token_response(user)
 
