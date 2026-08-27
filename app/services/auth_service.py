@@ -193,11 +193,15 @@ class AuthService:
 
         return self._build_token_response(user)
 
-    def check_registration_status(self, phone: str) -> dict:
-        clean_phone = phone.replace(" ", "").replace("-", "")
-        user = self.user_repo.get_by_phone(phone) or self.user_repo.get_by_phone(clean_phone)
+    def check_registration_status(self, identifier: str) -> dict:
+        clean_phone = identifier.replace(" ", "").replace("-", "")
+        user = (
+            self.user_repo.get_by_phone(identifier)
+            or self.user_repo.get_by_phone(clean_phone)
+            or self.user_repo.get_by_email(identifier)
+        )
         if not user:
-            raise HTTPException(status_code=404, detail="No registration found for this phone number")
+            raise HTTPException(status_code=404, detail="No registration found for this phone number or email")
 
         from app.models.store_owner import StoreOwner
         owner = self.db.query(StoreOwner).filter(StoreOwner.user_id == user.id).first()
@@ -205,6 +209,8 @@ class AuthService:
         rejection_reason = owner.rejection_reason if owner else None
         store_name = user.store.store_name if user.store else None
         business_type = owner.business_type if owner else "Cafe & Beverage"
+        branch = user.store.store_branch if user.store else "Main Branch"
+        address = user.store.address if user.store else "Phnom Penh, Cambodia"
 
         return {
             "user_id": user.id,
@@ -213,6 +219,8 @@ class AuthService:
             "email": user.email,
             "store_id": user.store_id,
             "store_name": store_name,
+            "store_branch": branch,
+            "address": address,
             "business_type": business_type,
             "status": status_val,
             "is_active": user.is_active,
