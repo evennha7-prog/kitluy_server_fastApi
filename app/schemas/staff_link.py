@@ -12,7 +12,7 @@ class StaffLinkBase(BaseModel):
 class StaffLinkCreate(StaffLinkBase):
     full_name: str
     phone_number: str
-    password: str
+    password: Optional[str] = "123456"
     email: Optional[str] = None
     pin_code: Optional[str] = "0000"
     shift: Optional[str] = "Morning Shift (06:30 AM - 03:00 PM)"
