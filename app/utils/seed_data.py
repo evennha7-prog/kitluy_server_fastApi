@@ -25,6 +25,7 @@ def seed_initial_data(db: Session):
             pin_code="9999",
             role="super_admin",
             shift="Platform Management",
+            telegram_username="@kitluy_superadmin",
             avatar_index=0,
             is_active=True,
             store_id=None,
@@ -73,6 +74,7 @@ def seed_initial_data(db: Session):
             pin_code="1234",
             role="store_admin",
             shift="Full-Time (06:30 AM - 05:00 PM)",
+            telegram_username="@audicafe_pos",
             avatar_index=0,
             is_active=True,
         )
@@ -104,6 +106,7 @@ def seed_initial_data(db: Session):
             pin_code="0000",
             role="cashier",
             shift="Morning Shift (06:30 AM - 03:00 PM)",
+            telegram_username="@sophea_pos",
             avatar_index=1,
             is_active=True,
         )
@@ -455,6 +458,7 @@ def seed_initial_data(db: Session):
             pin_code="1111",
             role="store_admin",
             shift="Full-Time",
+            telegram_username="@audicafe_tk",
             avatar_index=2,
             is_active=True,
         )
@@ -483,6 +487,7 @@ def seed_initial_data(db: Session):
             pin_code="2222",
             role="cashier",
             shift="Afternoon Shift",
+            telegram_username="@bopha_pos",
             avatar_index=3,
             is_active=True,
         )

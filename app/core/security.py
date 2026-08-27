@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Union, Any, List
 import bcrypt
 from jose import jwt, JWTError
-from fastapi import Depends, HTTPException, status, Query
+from fastapi import Depends, HTTPException, status, Query, Header
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -144,17 +144,19 @@ def get_current_super_admin(current_user = Depends(get_current_user)):
 
 def get_tenant_store_id(
     store_id: Optional[int] = Query(None, description="Optional store_id filter (Super Admin only)"),
+    x_store_id: Optional[int] = Header(None, alias="X-Store-Id", description="Store ID passed in header"),
     current_user = Depends(get_optional_current_user),
 ) -> int:
     """
     Resolves the store_id for multi-tenant requests.
-    - If user is logged in and is store_admin / cashier: returns their user.store_id.
-    - If user is super_admin: returns the requested store_id query param or fallback to first store (1).
-    - If unauthenticated (e.g. default demo POS checkout): returns query param or 1.
+    - If user is logged in and is not super_admin: strictly returns their current_user.store_id.
+    - If user is super_admin: returns query store_id or X-Store-Id header or fallback to 1.
+    - If unauthenticated: returns query store_id or X-Store-Id header or fallback to 1.
     """
     if current_user:
-        if current_user.role == "super_admin":
-            return store_id or 1
-        if current_user.store_id:
+        if current_user.role != "super_admin" and current_user.store_id:
             return current_user.store_id
-    return store_id or 1
+        if current_user.role == "super_admin":
+            return store_id or x_store_id or current_user.store_id or 1
+    return store_id or x_store_id or 1
+

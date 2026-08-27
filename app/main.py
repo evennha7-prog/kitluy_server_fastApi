@@ -51,6 +51,13 @@ def _run_auto_migrations():
         except Exception:
             pass
 
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN telegram_username VARCHAR(100) NULL;"))
+            conn.commit()
+        except Exception:
+            pass
+
+
         # 2. Add tenant_id to all tenant-scoped tables
         for table in tenant_tables:
             try:

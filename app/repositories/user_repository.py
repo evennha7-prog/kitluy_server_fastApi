@@ -1,6 +1,6 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from app.models.user import User
 
 
@@ -17,21 +17,35 @@ class UserRepository:
     def get_by_phone(self, phone: str) -> Optional[User]:
         clean = phone.replace(" ", "").replace("-", "")
         return self.db.query(User).filter(
-            or_(User.phone_number == phone, User.phone_number == clean)
+            or_(
+                User.phone_number == phone,
+                User.phone_number == clean,
+                func.replace(func.replace(User.phone_number, " ", ""), "-", "") == clean,
+            )
         ).first()
 
     def get_by_email(self, email: str) -> Optional[User]:
         return self.db.query(User).filter(User.email == email).first()
 
     def get_by_identifier(self, identifier: str) -> Optional[User]:
-        clean_id = identifier.replace(" ", "").replace("-", "")
+        clean_id = identifier.replace(" ", "").replace("-", "").strip()
+        lower_id = identifier.lower().strip()
+        clean_lower = clean_id.lower()
+
         return self.db.query(User).filter(
             or_(
-                User.phone_number == identifier,
+                User.phone_number == identifier.strip(),
                 User.phone_number == clean_id,
-                User.email == identifier,
+                func.replace(func.replace(User.phone_number, " ", ""), "-", "") == clean_id,
+                func.lower(User.email) == lower_id,
+                func.lower(User.full_name) == lower_id,
+                func.lower(func.replace(User.full_name, " ", "")) == clean_lower,
+                func.lower(User.telegram_username) == lower_id,
+                func.lower(User.telegram_username) == f"@{lower_id}",
             )
         ).first()
+
+
 
     def get_by_pin(self, pin: str, store_id: Optional[int] = None) -> Optional[User]:
         query = self.db.query(User).filter(User.pin_code == pin, User.is_active == True)

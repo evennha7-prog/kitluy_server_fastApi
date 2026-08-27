@@ -161,7 +161,7 @@ def test_tenant_data_isolation():
 
 
 def test_saas_store_registration_flow():
-    # A new store owner registers via SaaS endpoint
+    # 1. A new store owner registers via SaaS endpoint (starts in Pending status)
     register_payload = {
         "store_name": "Brown Bakery & Coffee",
         "store_branch": "BKK1 Flagship",
@@ -177,10 +177,34 @@ def test_saas_store_registration_flow():
     data = resp.json()
     assert data["role"] == "store_admin"
     assert data["store_name"] == "Brown Bakery & Coffee"
-    assert "access_token" in data
 
-    token = data["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
+    # 2. Check registration status endpoint
+    status_resp = client.get(f"{settings.API_V1_STR}/auth/registration-status?phone=010555777")
+    assert status_resp.status_code == 200
+    status_data = status_resp.json()
+    assert status_data["status"] == "pending"
+    assert status_data["store_name"] == "Brown Bakery & Coffee"
+
+    # 3. Super Admin logs in and approves the Store Owner
+    admin_login = client.post(f"{settings.API_V1_STR}/auth/login", json={"identifier": "071 00 00 000", "password": "admin123"})
+    assert admin_login.status_code == 200
+    admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+    # List pending store owners to find this applicant
+    owners_resp = client.get(f"{settings.API_V1_STR}/admin/store-owners?status=pending", headers=admin_headers)
+    assert owners_resp.status_code == 200
+    pending_owners = owners_resp.json()
+    target_owner = next(o for o in pending_owners if o["owner_phone"] == "010 555 777")
+
+    # Approve the store owner
+    approve_resp = client.post(f"{settings.API_V1_STR}/admin/store-owners/{target_owner['id']}/approve", headers=admin_headers)
+    assert approve_resp.status_code == 200
+    assert approve_resp.json()["status"] == "approved"
+
+    # 4. Now the approved Store Admin can log in successfully
+    owner_login = client.post(f"{settings.API_V1_STR}/auth/login", json={"identifier": "010 555 777", "password": "securepassword123"})
+    assert owner_login.status_code == 200
+    owner_headers = {"Authorization": f"Bearer {owner_login.json()['access_token']}"}
 
     # The new store admin can immediately add products to their newly created store
     new_prod = {
@@ -191,9 +215,10 @@ def test_saas_store_registration_flow():
         "cost_price": 0.90,
         "stock_qty": 40,
     }
-    prod_resp = client.post(f"{settings.API_V1_STR}/products", json=new_prod, headers=headers)
+    prod_resp = client.post(f"{settings.API_V1_STR}/products", json=new_prod, headers=owner_headers)
     assert prod_resp.status_code == 200
     assert prod_resp.json()["name"] == "Artisan Croissant"
+
 
 
 def test_sales_checkout_scoped():

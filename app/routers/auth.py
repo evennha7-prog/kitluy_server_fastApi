@@ -20,7 +20,17 @@ def register_store(req: StoreRegisterRequest, db: Session = Depends(get_db)):
     return auth_service.register_store(req)
 
 
+@router.get("/registration-status")
+def get_registration_status(phone: str, db: Session = Depends(get_db)):
+    """
+    Public endpoint for Store Owners to check their registration approval status by phone number.
+    """
+    auth_service = AuthService(db)
+    return auth_service.check_registration_status(phone)
+
+
 @router.post("/register", response_model=Token)
+
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
     """
     Register a user account under a specified store_id.

@@ -17,6 +17,7 @@ class User(Base):
     pin_code = Column(String(10), nullable=True)  # 4-digit POS Cashier PIN
     role = Column(String(50), default="cashier")  # super_admin, store_admin, cashier, stock_admin
     shift = Column(String(100), default="Morning Shift (06:30 AM - 03:00 PM)")
+    telegram_username = Column(String(100), nullable=True)
     avatar_index = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

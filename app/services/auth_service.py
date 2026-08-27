@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -75,17 +75,17 @@ class AuthService:
             role="store_admin",
             shift="Store Manager (Full-Time)",
             avatar_index=0,
-            is_active=True,
+            is_active=False,
         )
         created_user = self.user_repo.create(db_user)
 
-        # 3. Create StoreOwner profile in store_owners table
+        # 3. Create StoreOwner profile in store_owners table with 'pending' status
         from app.models.store_owner import StoreOwner
         store_owner = StoreOwner(
             user_id=created_user.id,
             store_id=store_resp.id,
             tenant_id=store_resp.id,
-            status="approved",
+            status="pending",
             business_type="Cafe & Beverage",
         )
         self.db.add(store_owner)
@@ -106,7 +106,7 @@ class AuthService:
                 detail="Email is already registered",
             )
 
-        # Default self-registration: Creates a new Store and provisions user as Store Owner
+        # Default self-registration: Creates a new Store and provisions user as Store Owner in Pending status
         if user_in.store_id is None or user_in.role in ["store_admin", "store_owner"]:
             store_service = StoreService(self.db)
             store_name = user_in.store_name or f"{user_in.full_name}'s Store"
@@ -122,10 +122,12 @@ class AuthService:
             target_store_id = store_resp.id
             user_role = "store_admin"
             is_store_owner = True
+            is_active_initial = True
         else:
             target_store_id = user_in.store_id
             user_role = user_in.role or "cashier"
             is_store_owner = False
+            is_active_initial = True
 
         hashed_password = get_password_hash(user_in.password)
         db_user = User(
@@ -137,9 +139,9 @@ class AuthService:
             hashed_password=hashed_password,
             pin_code=user_in.pin_code or "1234",
             role=user_role,
-            shift=user_in.shift or "Store Manager (Full-Time)" if is_store_owner else "Morning Shift",
+            shift=user_in.shift or ("Store Manager (Full-Time)" if is_store_owner else "Morning Shift"),
             avatar_index=user_in.avatar_index or 0,
-            is_active=True,
+            is_active=is_active_initial,
         )
         created_user = self.user_repo.create(db_user)
 
@@ -151,6 +153,7 @@ class AuthService:
                 tenant_id=target_store_id,
                 status="approved",
                 business_type=user_in.business_type or "Cafe & Beverage",
+                approved_at=datetime.now(timezone.utc),
             )
             self.db.add(store_owner)
             self.db.commit()
@@ -165,9 +168,56 @@ class AuthService:
                 detail="Invalid phone number/email or password",
             )
         if not user.is_active:
+            from app.models.store_owner import StoreOwner
+            owner = self.db.query(StoreOwner).filter(StoreOwner.user_id == user.id).first()
+            if owner:
+                if owner.status == "pending":
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="គណនីហាងរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Administrator (Your store application is pending approval)",
+                    )
+                elif owner.status == "rejected":
+                    reason = f": {owner.rejection_reason}" if owner.rejection_reason else ""
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"គណនីហាងរបស់អ្នកត្រូវបានបដិសេធ (Store registration rejected{reason})",
+                    )
+                elif owner.status == "suspended":
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="គណនីហាងត្រូវបានផ្អាកដំណើរការ (Store account is suspended)",
+                    )
             raise HTTPException(status_code=400, detail="Account is disabled")
 
         return self._build_token_response(user)
+
+    def check_registration_status(self, phone: str) -> dict:
+        clean_phone = phone.replace(" ", "").replace("-", "")
+        user = self.user_repo.get_by_phone(phone) or self.user_repo.get_by_phone(clean_phone)
+        if not user:
+            raise HTTPException(status_code=404, detail="No registration found for this phone number")
+
+        from app.models.store_owner import StoreOwner
+        owner = self.db.query(StoreOwner).filter(StoreOwner.user_id == user.id).first()
+        status_val = owner.status if owner else ("approved" if user.is_active else "pending")
+        rejection_reason = owner.rejection_reason if owner else None
+        store_name = user.store.store_name if user.store else None
+        business_type = owner.business_type if owner else "Cafe & Beverage"
+
+        return {
+            "user_id": user.id,
+            "owner_name": user.full_name,
+            "phone_number": user.phone_number,
+            "email": user.email,
+            "store_id": user.store_id,
+            "store_name": store_name,
+            "business_type": business_type,
+            "status": status_val,
+            "is_active": user.is_active,
+            "rejection_reason": rejection_reason,
+            "created_at": user.created_at.isoformat() if hasattr(user, "created_at") and user.created_at else None,
+        }
+
 
     def login_with_pin(self, pin_data: PinLoginRequest) -> Token:
         user = self.user_repo.get_by_pin(pin_data.pin, store_id=pin_data.store_id)
@@ -196,6 +246,8 @@ class AuthService:
             user.role = profile_in.role
         if profile_in.shift is not None:
             user.shift = profile_in.shift
+        if profile_in.telegram_username is not None:
+            user.telegram_username = profile_in.telegram_username
         if profile_in.avatar_index is not None:
             user.avatar_index = profile_in.avatar_index
 

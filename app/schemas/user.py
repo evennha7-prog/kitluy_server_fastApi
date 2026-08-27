@@ -9,6 +9,7 @@ class UserBase(BaseModel):
     email: Optional[str] = None
     role: str = "store_admin"  # Default: store_admin (Store Owner), super_admin, cashier, stock_admin
     shift: Optional[str] = "Store Manager (Full-Time)"
+    telegram_username: Optional[str] = None
     avatar_index: int = 0
     store_id: Optional[int] = None
 
@@ -30,6 +31,7 @@ class StaffCreate(BaseModel):
     pin_code: Optional[str] = None
     role: str = "cashier"  # cashier, stock_admin, store_admin
     shift: Optional[str] = "Morning Shift (06:30 AM - 03:00 PM)"
+    telegram_username: Optional[str] = None
     avatar_index: int = 0
 
 
@@ -39,6 +41,7 @@ class UserUpdate(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
     shift: Optional[str] = None
+    telegram_username: Optional[str] = None
     avatar_index: Optional[int] = None
     is_active: Optional[bool] = None
     pin_code: Optional[str] = None
@@ -51,7 +54,9 @@ class UserProfileUpdate(BaseModel):
     email: Optional[str] = None
     role: Optional[str] = None
     shift: Optional[str] = None
+    telegram_username: Optional[str] = None
     avatar_index: Optional[int] = None
+
 
 
 class UserResponse(UserBase):
