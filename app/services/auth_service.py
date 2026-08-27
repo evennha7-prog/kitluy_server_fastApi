@@ -193,12 +193,13 @@ class AuthService:
 
         return self._build_token_response(user)
 
-    def check_registration_status(self, identifier: str) -> dict:
-        clean_phone = identifier.replace(" ", "").replace("-", "")
+    def check_registration_status(self, phone: str) -> dict:
+        clean_phone = phone.replace(" ", "").replace("-", "")
         user = (
-            self.user_repo.get_by_phone(identifier)
+            self.user_repo.get_by_phone(phone)
             or self.user_repo.get_by_phone(clean_phone)
-            or self.user_repo.get_by_email(identifier)
+            or self.user_repo.get_by_email(phone)
+            or self.user_repo.get_by_identifier(phone)
         )
         if not user:
             raise HTTPException(status_code=404, detail="No registration found for this phone number or email")
@@ -207,10 +208,11 @@ class AuthService:
         owner = self.db.query(StoreOwner).filter(StoreOwner.user_id == user.id).first()
         status_val = owner.status if owner else ("approved" if user.is_active else "pending")
         rejection_reason = owner.rejection_reason if owner else None
-        store_name = user.store.store_name if user.store else None
+        store = user.store
+        store_name = store.store_name if store else "KaShop"
+        store_branch = store.store_branch if store else "Main Branch"
+        address = store.address if store else "Phnom Penh, Cambodia"
         business_type = owner.business_type if owner else "Cafe & Beverage"
-        branch = user.store.store_branch if user.store else "Main Branch"
-        address = user.store.address if user.store else "Phnom Penh, Cambodia"
 
         return {
             "user_id": user.id,
@@ -219,7 +221,7 @@ class AuthService:
             "email": user.email,
             "store_id": user.store_id,
             "store_name": store_name,
-            "store_branch": branch,
+            "store_branch": store_branch,
             "address": address,
             "business_type": business_type,
             "status": status_val,

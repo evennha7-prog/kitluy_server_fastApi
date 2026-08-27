@@ -21,17 +21,12 @@ def register_store(req: StoreRegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/registration-status")
-def get_registration_status(
-    identifier: str = "",
-    phone: str = "",
-    db: Session = Depends(get_db),
-):
+def get_registration_status(phone: str, db: Session = Depends(get_db)):
     """
-    Public endpoint for Store Owners to check their registration approval status by phone number or email.
+    Public endpoint for Store Owners to check their registration approval status by phone number.
     """
     auth_service = AuthService(db)
-    query_param = identifier.strip() or phone.strip()
-    return auth_service.check_registration_status(query_param)
+    return auth_service.check_registration_status(phone)
 
 
 @router.post("/register", response_model=Token)
