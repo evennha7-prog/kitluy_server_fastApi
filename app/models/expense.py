@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -18,4 +18,10 @@ class Expense(Base):
     recorded_by = Column(String(100), default="Admin")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    __table_args__ = (
+        Index("ix_expenses_store_date", "store_id", "date"),
+        Index("ix_expenses_store_category", "store_id", "category"),
+    )
+
     store = relationship("Store", back_populates="expenses")
+

@@ -25,9 +25,23 @@ class StoreService:
 
     def list_stores_with_stats(self, skip: int = 0, limit: int = 100) -> List[StoreWithStatsResponse]:
         stores = self.store_repo.list_all(skip=skip, limit=limit)
+        if not stores:
+            return []
+
+        store_ids = [s.id for s in stores]
+        stats_batch = self.store_repo.get_stores_stats_batch(store_ids)
+
         results = []
         for s in stores:
-            stats = self.store_repo.get_store_stats(s.id)
+            stats = stats_batch.get(
+                s.id,
+                {
+                    "total_staff": 0,
+                    "total_products": 0,
+                    "total_sales_count": 0,
+                    "total_revenue": 0.0,
+                },
+            )
             resp = StoreWithStatsResponse(
                 id=s.id,
                 store_code=s.store_code,
@@ -49,6 +63,7 @@ class StoreService:
             )
             results.append(resp)
         return results
+
 
     def get_by_id(self, store_id: int) -> StoreWithStatsResponse:
         store = self.store_repo.get_by_id(store_id)

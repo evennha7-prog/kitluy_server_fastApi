@@ -28,6 +28,9 @@ class PurchaseService:
         if not purchase_in.items:
             raise HTTPException(status_code=400, detail="Cannot create purchase without items")
 
+        product_ids = [item.product_id for item in purchase_in.items if item.product_id]
+        products_map = {p.id: p for p in self.product_repo.get_by_ids(product_ids, store_id=store_id)} if product_ids else {}
+
         total_amount = 0.0
         purchase_items = []
 
@@ -36,6 +39,8 @@ class PurchaseService:
             total_amount += item_total
             purchase_items.append(
                 PurchaseItem(
+                    store_id=store_id,
+                    tenant_id=store_id,
                     product_id=item.product_id,
                     product_name=item.product_name,
                     quantity=item.quantity,
@@ -44,18 +49,17 @@ class PurchaseService:
                 )
             )
 
-            # Restock product if product_id is specified
-            if item.product_id:
-                product = self.product_repo.get_by_id(item.product_id, store_id=store_id)
-                if product:
-                    product.stock_qty = (product.stock_qty or 0) + item.quantity
-                    product.cost_price = item.unit_cost
-                    self.product_repo.update(product)
+            # Restock product in memory if product_id is specified
+            if item.product_id and item.product_id in products_map:
+                product = products_map[item.product_id]
+                product.stock_qty = (product.stock_qty or 0) + item.quantity
+                product.cost_price = item.unit_cost
 
         invoice_no = purchase_in.invoice_no or self._generate_invoice_no()
 
         purchase = Purchase(
             store_id=store_id,
+            tenant_id=store_id,
             supplier_id=purchase_in.supplier_id,
             supplier_name=purchase_in.supplier_name,
             invoice_no=invoice_no,
@@ -67,3 +71,4 @@ class PurchaseService:
 
         created = self.repo.create(purchase)
         return PurchaseResponse.model_validate(created)
+

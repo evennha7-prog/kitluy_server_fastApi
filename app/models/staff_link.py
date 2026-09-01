@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -22,7 +22,12 @@ class StaffLink(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
+    __table_args__ = (
+        Index("ix_staff_link_store_active", "store_id", "is_active"),
+    )
+
     # Relationships
     store_owner = relationship("StoreOwner", back_populates="staff_links")
     store = relationship("Store", foreign_keys=[store_id])
     staff_user = relationship("User", foreign_keys=[staff_user_id], backref="staff_link")
+

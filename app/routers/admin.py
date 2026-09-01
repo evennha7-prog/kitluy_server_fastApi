@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 
 from app.core.database import get_db
 from app.core.security import get_current_super_admin, get_optional_current_user, get_password_hash
@@ -9,6 +10,7 @@ from app.models.user import User
 from app.models.store import Store
 from app.models.store_owner import StoreOwner
 from app.models.staff_link import StaffLink
+from app.models.sale import Sale
 from app.repositories.user_repository import UserRepository
 from app.repositories.store_repository import StoreRepository
 from app.repositories.sale_repository import SaleRepository
@@ -31,25 +33,23 @@ def get_super_admin_dashboard(
     current_user: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db),
 ):
-    store_repo = StoreRepository(db)
-    user_repo = UserRepository(db)
-    stores = store_repo.list_all(limit=1000)
-    
-    total_stores = len(stores)
-    active_stores = sum(1 for s in stores if s.is_active)
-    total_users = len(user_repo.list_all(limit=5000))
+    total_stores = db.query(func.count(Store.id)).scalar() or 0
+    active_stores = db.query(func.count(Store.id)).filter(Store.is_active == True).scalar() or 0
+    total_users = db.query(func.count(User.id)).scalar() or 0
     
     # Store owners count and pending applications
-    total_owners = db.query(StoreOwner).count()
-    pending_owners = db.query(StoreOwner).filter(StoreOwner.status == "pending").count()
-    approved_owners = db.query(StoreOwner).filter(StoreOwner.status == "approved").count()
-    total_staff_links = db.query(StaffLink).count()
+    total_owners = db.query(func.count(StoreOwner.id)).scalar() or 0
+    pending_owners = db.query(func.count(StoreOwner.id)).filter(StoreOwner.status == "pending").scalar() or 0
+    approved_owners = db.query(func.count(StoreOwner.id)).filter(StoreOwner.status == "approved").scalar() or 0
+    total_staff_links = db.query(func.count(StaffLink.id)).scalar() or 0
 
-    # Calculate total platform volume
-    total_platform_revenue = 0.0
-    for s in stores:
-        stats = store_repo.get_store_stats(s.id)
-        total_platform_revenue += stats["total_revenue"]
+    # Calculate total platform volume in a single aggregate query
+    total_platform_revenue = (
+        db.query(func.coalesce(func.sum(Sale.total_amount), 0.0))
+        .filter(Sale.payment_status == "PAID")
+        .scalar()
+        or 0.0
+    )
 
     return {
         "platform_name": "KITLUY SaaS POS Engine",
@@ -61,7 +61,7 @@ def get_super_admin_dashboard(
         "pending_store_owners": pending_owners,
         "approved_store_owners": approved_owners,
         "total_staff_links": total_staff_links,
-        "total_platform_revenue": round(total_platform_revenue, 2),
+        "total_platform_revenue": round(float(total_platform_revenue), 2),
     }
 
 
@@ -79,54 +79,35 @@ def list_store_owners(
 ):
     """
     Administrator lists all Store Owners with tenancy and status details.
-    Auto-discovers and links any registered store owner users.
+    Uses joinedload and batch staff count for maximum query performance.
     """
-    try:
-        # Auto-discover and link any registered store owner users not yet in store_owners table
-        unlinked_users = db.query(User).filter(
-            (User.role.in_(["store_admin", "store_owner"])) | (User.is_active == False)
-        ).all()
-        for u in unlinked_users:
-            if u.role == "super_admin":
-                continue
-            existing = db.query(StoreOwner).filter(StoreOwner.user_id == u.id).first()
-            if not existing:
-                store_id = u.store_id
-                if not store_id:
-                    new_store = Store(
-                        store_code=f"STORE-{u.id:03d}",
-                        store_name=f"{u.full_name}'s Store",
-                        store_branch="Main Branch",
-                        phone_number=u.phone_number,
-                        email=u.email,
-                        is_active=u.is_active,
-                    )
-                    db.add(new_store)
-                    db.flush()
-                    u.store_id = new_store.id
-                    u.tenant_id = new_store.id
-                    store_id = new_store.id
+    query = (
+        db.query(StoreOwner)
+        .options(
+            joinedload(StoreOwner.user),
+            joinedload(StoreOwner.store),
+        )
+    )
 
-                new_owner = StoreOwner(
-                    user_id=u.id,
-                    store_id=store_id,
-                    tenant_id=store_id,
-                    status="pending" if not u.is_active else "approved",
-                    business_type="Retail & Business",
-                )
-                db.add(new_owner)
-        db.commit()
-    except Exception:
-        db.rollback()
-
-    query = db.query(StoreOwner)
     if status_filter and status_filter.lower() != "all":
         query = query.filter(StoreOwner.status == status_filter.lower())
 
     owners = query.order_by(StoreOwner.created_at.desc()).offset(skip).limit(limit).all()
+    if not owners:
+        return []
+
+    # Batch compute staff count across all retrieved owners in 1 query
+    owner_ids = [o.id for o in owners]
+    staff_counts = (
+        db.query(StaffLink.store_owner_id, func.count(StaffLink.id))
+        .filter(StaffLink.store_owner_id.in_(owner_ids), StaffLink.is_active == True)
+        .group_by(StaffLink.store_owner_id)
+        .all()
+    )
+    staff_map = {row[0]: int(row[1]) for row in staff_counts}
+
     results = []
     for o in owners:
-        staff_count = db.query(StaffLink).filter(StaffLink.store_owner_id == o.id, StaffLink.is_active == True).count()
         results.append(
             StoreOwnerResponse(
                 id=o.id,
@@ -147,10 +128,11 @@ def list_store_owners(
                 store_name=o.store.store_name if o.store else None,
                 store_branch=o.store.store_branch if o.store else None,
                 address=o.store.address if o.store else None,
-                staff_count=staff_count,
+                staff_count=staff_map.get(o.id, 0),
             )
         )
     return results
+
 
 
 @router.post("/store-owners", response_model=StoreOwnerResponse)

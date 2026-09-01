@@ -401,4 +401,89 @@ def test_user_invoice_template():
     assert reset_tpl["paper_size"] == "80mm"
 
 
+def test_analytics_daily_transactions_optimization():
+    # Login as Store Admin 1
+    login_resp = client.post(f"{settings.API_V1_STR}/auth/login", json={"identifier": "071 93 93 991", "password": "123456"})
+    headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
+    # Query 7 days
+    resp_7 = client.get(f"{settings.API_V1_STR}/analytics/daily-transactions?days=7", headers=headers)
+    assert resp_7.status_code == 200
+    daily_7 = resp_7.json()
+    assert len(daily_7) == 7
+    assert all("date" in d and "transactions_count" in d and "total_sales" in d for d in daily_7)
+
+    # Query 14 days
+    resp_14 = client.get(f"{settings.API_V1_STR}/analytics/daily-transactions?days=14", headers=headers)
+    assert resp_14.status_code == 200
+    daily_14 = resp_14.json()
+    assert len(daily_14) == 14
+
+
+def test_atomic_multi_item_checkout_and_stock_deduction():
+    # Login as Store Admin 1
+    login_resp = client.post(f"{settings.API_V1_STR}/auth/login", json={"identifier": "071 93 93 991", "password": "123456"})
+    headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
+    # Create two test products
+    p1 = client.post(
+        f"{settings.API_V1_STR}/products",
+        json={"name": "Test Espresso", "price": 2.00, "stock_qty": 50},
+        headers=headers,
+    ).json()
+    p2 = client.post(
+        f"{settings.API_V1_STR}/products",
+        json={"name": "Test Croissant", "price": 3.00, "stock_qty": 30},
+        headers=headers,
+    ).json()
+
+    checkout_payload = {
+        "cashier_name": "Test Cashier",
+        "customer_name": "Test Customer",
+        "payment_method": "CASH",
+        "discount": 1.00,
+        "tax": 0.50,
+        "items": [
+            {"product_id": p1["id"], "product_name": p1["name"], "unit_price": p1["price"], "quantity": 3},
+            {"product_id": p2["id"], "product_name": p2["name"], "unit_price": p2["price"], "quantity": 2},
+        ],
+    }
+    sale_resp = client.post(f"{settings.API_V1_STR}/sales/checkout", json=checkout_payload, headers=headers)
+    assert sale_resp.status_code == 200
+    sale_data = sale_resp.json()
+    # (3*2.00 + 2*3.00) = 12.00 - 1.00 + 0.50 = 11.50
+    assert sale_data["subtotal"] == 12.00
+    assert sale_data["total_amount"] == 11.50
+    assert len(sale_data["items"]) == 2
+
+    # Verify inventory was accurately deducted
+    p1_check = client.get(f"{settings.API_V1_STR}/products/{p1['id']}", headers=headers).json()
+    p2_check = client.get(f"{settings.API_V1_STR}/products/{p2['id']}", headers=headers).json()
+    assert p1_check["stock_qty"] == 47
+    assert p2_check["stock_qty"] == 28
+
+
+def test_store_settings_update_flow():
+    # Login as Store Admin 1
+    login_resp = client.post(f"{settings.API_V1_STR}/auth/login", json={"identifier": "071 93 93 991", "password": "123456"})
+    headers = {"Authorization": f"Bearer {login_resp.json()['access_token']}"}
+
+    update_payload = {
+        "store_name": "AudiCafe Flagship",
+        "printer_name": "Epson TM-T88VI",
+        "printer_paper_width": 80,
+        "auto_print_receipt": False,
+        "receipt_header": "Welcome to AudiCafe Flagship",
+        "telegram_alerts_enabled": True,
+    }
+    update_resp = client.put(f"{settings.API_V1_STR}/settings", json=update_payload, headers=headers)
+    assert update_resp.status_code == 200
+    res_data = update_resp.json()
+    assert res_data["store_name"] == "AudiCafe Flagship"
+    assert res_data["printer_name"] == "Epson TM-T88VI"
+    assert res_data["auto_print_receipt"] is False
+    assert res_data["telegram_alerts_enabled"] is True
+
+
+
 

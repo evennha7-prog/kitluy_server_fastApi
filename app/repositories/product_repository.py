@@ -14,11 +14,28 @@ class ProductRepository:
             query = query.filter(Product.store_id == store_id)
         return query.first()
 
+    def get_by_ids(self, product_ids: List[int], store_id: Optional[int] = None) -> List[Product]:
+        if not product_ids:
+            return []
+        query = self.db.query(Product).filter(Product.id.in_(product_ids))
+        if store_id is not None:
+            query = query.filter(Product.store_id == store_id)
+        return query.all()
+
     def get_by_barcode(self, barcode: str, store_id: Optional[int] = None) -> Optional[Product]:
         query = self.db.query(Product).filter(Product.barcode == barcode)
         if store_id is not None:
             query = query.filter(Product.store_id == store_id)
         return query.first()
+
+    def get_by_barcodes(self, barcodes: List[str], store_id: Optional[int] = None) -> List[Product]:
+        if not barcodes:
+            return []
+        query = self.db.query(Product).filter(Product.barcode.in_(barcodes))
+        if store_id is not None:
+            query = query.filter(Product.store_id == store_id)
+        return query.all()
+
 
     def list_products(
         self,

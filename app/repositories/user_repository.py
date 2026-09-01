@@ -14,36 +14,70 @@ class UserRepository:
     def get_by_id_and_store(self, user_id: int, store_id: int) -> Optional[User]:
         return self.db.query(User).filter(User.id == user_id, User.store_id == store_id).first()
 
+    def _generate_phone_variants(self, phone: str) -> List[str]:
+        raw = phone.strip()
+        clean = raw.replace(" ", "").replace("-", "").replace(".", "")
+        variants = {raw, clean}
+        if len(clean) == 10:
+            variants.add(f"{clean[:3]} {clean[3:5]} {clean[5:7]} {clean[7:]}")
+            variants.add(f"{clean[:3]} {clean[3:6]} {clean[6:]}")
+        elif len(clean) == 9:
+            variants.add(f"{clean[:3]} {clean[3:5]} {clean[5:7]} {clean[7:]}")
+            variants.add(f"{clean[:3]} {clean[3:6]} {clean[6:]}")
+        return list(variants)
+
     def get_by_phone(self, phone: str) -> Optional[User]:
-        clean = phone.replace(" ", "").replace("-", "")
+        variants = self._generate_phone_variants(phone)
+        user = self.db.query(User).filter(User.phone_number.in_(variants)).first()
+        if user:
+            return user
+        clean = phone.replace(" ", "").replace("-", "").strip()
         return self.db.query(User).filter(
-            or_(
-                User.phone_number == phone,
-                User.phone_number == clean,
-                func.replace(func.replace(User.phone_number, " ", ""), "-", "") == clean,
-            )
+            func.replace(func.replace(User.phone_number, " ", ""), "-", "") == clean
         ).first()
 
     def get_by_email(self, email: str) -> Optional[User]:
-        return self.db.query(User).filter(User.email == email).first()
+        return self.db.query(User).filter(User.email == email.strip().lower()).first()
 
     def get_by_identifier(self, identifier: str) -> Optional[User]:
-        clean_id = identifier.replace(" ", "").replace("-", "").strip()
-        lower_id = identifier.lower().strip()
-        clean_lower = clean_id.lower()
+        ident = identifier.strip()
+        lower_id = ident.lower()
+        variants = self._generate_phone_variants(ident)
 
-        return self.db.query(User).filter(
-            or_(
-                User.phone_number == identifier.strip(),
-                User.phone_number == clean_id,
-                func.replace(func.replace(User.phone_number, " ", ""), "-", "") == clean_id,
-                func.lower(User.email) == lower_id,
-                func.lower(User.full_name) == lower_id,
-                func.lower(func.replace(User.full_name, " ", "")) == clean_lower,
-                func.lower(User.telegram_username) == lower_id,
-                func.lower(User.telegram_username) == f"@{lower_id}",
+        # 1. Fast indexed lookups: phone variants, email, username
+        user = (
+            self.db.query(User)
+            .filter(
+                or_(
+                    User.phone_number.in_(variants),
+                    User.email == lower_id,
+                    User.telegram_username == ident,
+                    User.telegram_username == f"@{ident.lstrip('@')}",
+                    User.full_name == ident,
+                )
             )
-        ).first()
+            .first()
+        )
+        if user:
+            return user
+
+        # 2. Fallback case-insensitive / space-stripped lookup
+        clean_id = ident.replace(" ", "").replace("-", "")
+        clean_lower = clean_id.lower()
+        return (
+            self.db.query(User)
+            .filter(
+                or_(
+                    func.replace(func.replace(User.phone_number, " ", ""), "-", "") == clean_id,
+                    func.lower(User.email) == lower_id,
+                    func.lower(User.full_name) == lower_id,
+                    func.lower(func.replace(User.full_name, " ", "")) == clean_lower,
+                    func.lower(User.telegram_username) == lower_id,
+                )
+            )
+            .first()
+        )
+
 
 
 

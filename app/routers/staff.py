@@ -1,7 +1,6 @@
-import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.security import get_current_store_admin, get_password_hash
@@ -26,11 +25,18 @@ def list_staff(
     Store Owner lists all staff members linked to their store via staffs_link.
     Super Admin lists across all stores.
     """
-    query = db.query(StaffLink)
+    query = (
+        db.query(StaffLink)
+        .options(
+            joinedload(StaffLink.staff_user),
+            joinedload(StaffLink.store),
+        )
+    )
     if current_admin.role != "super_admin":
         query = query.filter(StaffLink.store_id == current_admin.store_id)
 
     links = query.order_by(StaffLink.created_at.desc()).offset(skip).limit(limit).all()
+
     results = []
     for l in links:
         u = l.staff_user

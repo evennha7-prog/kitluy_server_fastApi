@@ -15,7 +15,7 @@ class SettingService:
     def get_settings(self, store_id: int) -> StoreSettingResponse:
         store = self.store_repo.get_by_id(store_id)
         if not store:
-            stores = self.store_repo.get_all()
+            stores = self.store_repo.list_all(limit=1)
             if stores:
                 store = stores[0]
                 store_id = store.id
@@ -61,7 +61,7 @@ class SettingService:
     def update_settings(self, store_id: int, update_in: StoreSettingUpdate) -> StoreSettingResponse:
         store = self.store_repo.get_by_id(store_id)
         if not store:
-            stores = self.store_repo.get_all()
+            stores = self.store_repo.list_all(limit=1)
             if stores:
                 store = stores[0]
                 store_id = store.id
@@ -94,10 +94,12 @@ class SettingService:
             self.store_repo.update(store)
 
         # Update printer / telegram settings
-        for key in ["printer_name", "printer_paper_width", "auto_print_receipt", "sound_alert", "receipt_header", "receipt_footer", "telegram_bot_token", "telegram_chat_id", "telegram_alerts_enabled"]:
-            val = getattr(update_in, key, None)
-            if val is not None:
-                setattr(settings, key, val)
+        if settings:
+            for key in ["printer_name", "printer_paper_width", "auto_print_receipt", "sound_alert", "receipt_header", "receipt_footer", "telegram_bot_token", "telegram_chat_id", "telegram_alerts_enabled"]:
+                val = getattr(update_in, key, None)
+                if val is not None:
+                    setattr(settings, key, val)
+            self.repo.update(settings)
 
-        self.repo.update_settings(settings)
         return self.get_settings(store_id=store_id)
+

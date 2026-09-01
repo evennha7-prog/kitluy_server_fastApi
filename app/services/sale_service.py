@@ -20,37 +20,36 @@ class SaleService:
         self.customer_repo = CustomerRepository(db)
 
     def _generate_invoice_no(self, store_id: int) -> str:
-        today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
-        count = self.sale_repo.count_sales(store_id=store_id) + 1
-        candidate = f"INV-{today_str}-{count:04d}"
-
-        # Prevent any duplicate invoice collision
-        while self.sale_repo.get_by_invoice(candidate, store_id=store_id) is not None:
-            count += 1
-            candidate = f"INV-{today_str}-{count:04d}"
-
-        return candidate
+        now_utc = datetime.now(timezone.utc)
+        today_str = now_utc.strftime("%Y%m%d")
+        time_part = now_utc.strftime("%H%M%S")
+        ms_part = f"{now_utc.microsecond // 1000:03d}"
+        return f"INV-{today_str}-{time_part}{ms_part[-2:]}"
 
     def checkout(self, req: CheckoutRequest, store_id: int, cashier_user=None) -> SaleResponse:
         if not req.items:
             raise HTTPException(status_code=400, detail="Cannot checkout an empty cart")
+
+        # 1. Batch fetch products to avoid N+1 queries during checkout
+        product_ids = [item.product_id for item in req.items if item.product_id]
+        barcodes = [item.barcode for item in req.items if item.barcode and not item.product_id]
+
+        prods_by_id = {p.id: p for p in self.product_repo.get_by_ids(product_ids, store_id=store_id)} if product_ids else {}
+        prods_by_bc = {p.barcode: p for p in self.product_repo.get_by_barcodes(barcodes, store_id=store_id)} if barcodes else {}
 
         subtotal = 0.0
         sale_items = []
 
         for item_in in req.items:
             product = None
-            if item_in.product_id:
-                product = self.product_repo.get_by_id(item_in.product_id, store_id=store_id)
-            elif item_in.barcode:
-                product = self.product_repo.get_by_barcode(item_in.barcode, store_id=store_id)
+            if item_in.product_id and item_in.product_id in prods_by_id:
+                product = prods_by_id[item_in.product_id]
+            elif item_in.barcode and item_in.barcode in prods_by_bc:
+                product = prods_by_bc[item_in.barcode]
 
             unit_price = item_in.unit_price
-            if product:
-                # Deduct inventory stock
-                if product.stock_qty is not None:
-                    product.stock_qty = max(0, product.stock_qty - item_in.quantity)
-                    self.product_repo.update(product)
+            if product and product.stock_qty is not None:
+                product.stock_qty = max(0, product.stock_qty - item_in.quantity)
 
             item_total = unit_price * item_in.quantity
             subtotal += item_total
@@ -82,7 +81,6 @@ class SaleService:
                 customer.total_orders = (customer.total_orders or 0) + 1
                 customer.total_spent = (customer.total_spent or 0.0) + total_amount
                 customer.points = (customer.points or 0) + int(total_amount)
-                self.customer_repo.update(customer)
 
         cashier_id = cashier_user.id if cashier_user else None
         cashier_name = cashier_user.full_name if cashier_user else (req.cashier_name or "Cashier")
@@ -106,8 +104,11 @@ class SaleService:
             items=sale_items,
         )
 
-        created_sale = self.sale_repo.create(sale)
-        return SaleResponse.model_validate(created_sale)
+        self.db.add(sale)
+        self.db.commit()
+        self.db.refresh(sale)
+        return SaleResponse.model_validate(sale)
+
 
     def list_sales(
         self,

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -30,26 +30,33 @@ class Sale(Base):
 
     __table_args__ = (
         UniqueConstraint("store_id", "invoice_no", name="uq_store_invoice_no"),
+        Index("ix_sales_store_created", "store_id", "created_at"),
+        Index("ix_sales_store_status_created", "store_id", "payment_status", "created_at"),
     )
 
     store = relationship("Store", back_populates="sales")
     cashier = relationship("User", back_populates="sales")
     customer = relationship("Customer", back_populates="sales")
-    items = relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan")
+    items = relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan", lazy="selectin")
 
 
 class SaleItem(Base):
     __tablename__ = "sale_items"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=False)
+    sale_id = Column(Integer, ForeignKey("sales.id", ondelete="CASCADE"), nullable=False, index=True)
     store_id = Column(Integer, nullable=True, index=True)
     tenant_id = Column(Integer, nullable=True, index=True)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True, index=True)
     product_name = Column(String(150), nullable=False)
     barcode = Column(String(100), nullable=True)
     unit_price = Column(Float, nullable=False)
     quantity = Column(Integer, nullable=False, default=1)
     total_price = Column(Float, nullable=False)
 
+    __table_args__ = (
+        Index("ix_sale_items_store_prod", "store_id", "product_id"),
+    )
+
     sale = relationship("Sale", back_populates="items")
+

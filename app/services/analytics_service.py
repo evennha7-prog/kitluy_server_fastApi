@@ -22,24 +22,26 @@ class AnalyticsService:
         today_start = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=timezone.utc)
         today_end = datetime(now.year, now.month, now.day, 23, 59, 59, tzinfo=timezone.utc)
 
-        # Today's sales (Income)
-        income = self.sale_repo.sum_sales(store_id=store_id, start_date=today_start, end_date=today_end)
-        cash_sales = self.sale_repo.sum_sales(store_id=store_id, start_date=today_start, end_date=today_end, payment_method="CASH")
-        khqr_sales = self.sale_repo.sum_sales(store_id=store_id, start_date=today_start, end_date=today_end, payment_method="ABA_KHQR")
+        # 1. Single combined query for today's sales metrics
+        metrics = self.sale_repo.get_sales_metrics(
+            store_id=store_id, start_date=today_start, end_date=today_end
+        )
+        total_transactions = metrics["total_transactions"]
+        income = metrics["income"]
+        cash_sales = metrics["cash_sales"]
+        khqr_sales = metrics["khqr_sales"]
 
         # Today's expenses
         expense = self.expense_repo.sum_expenses(store_id=store_id, start_date=today_start, end_date=today_end)
 
-        # Total transactions
-        total_transactions = self.sale_repo.count_sales(store_id=store_id, start_date=today_start, end_date=today_end)
-
         # If zero transactions today, provide lifetime totals for dashboard metrics
         if total_transactions == 0:
-            income = self.sale_repo.sum_sales(store_id=store_id)
+            lifetime_metrics = self.sale_repo.get_sales_metrics(store_id=store_id)
+            total_transactions = lifetime_metrics["total_transactions"]
+            income = lifetime_metrics["income"]
+            cash_sales = lifetime_metrics["cash_sales"]
+            khqr_sales = lifetime_metrics["khqr_sales"]
             expense = self.expense_repo.sum_expenses(store_id=store_id)
-            total_transactions = self.sale_repo.count_sales(store_id=store_id)
-            cash_sales = self.sale_repo.sum_sales(store_id=store_id, payment_method="CASH")
-            khqr_sales = self.sale_repo.sum_sales(store_id=store_id, payment_method="ABA_KHQR")
 
         net_profit = max(0.0, income - expense)
 
@@ -68,22 +70,27 @@ class AnalyticsService:
 
     def get_daily_transactions(self, store_id: int, days: int = 7) -> List[DailyTransactionResponse]:
         now = datetime.now(timezone.utc)
-        results = []
+        start_date = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=timezone.utc) - timedelta(days=days - 1)
+        end_date = datetime(now.year, now.month, now.day, 23, 59, 59, tzinfo=timezone.utc)
 
+        # Single grouped SQL query for the entire date range
+        daily_stats_map = self.sale_repo.get_daily_sales_stats(
+            store_id=store_id, start_date=start_date, end_date=end_date
+        )
+
+        results: List[DailyTransactionResponse] = []
         for i in range(days - 1, -1, -1):
             day = now - timedelta(days=i)
-            day_start = datetime(day.year, day.month, day.day, 0, 0, 0, tzinfo=timezone.utc)
-            day_end = datetime(day.year, day.month, day.day, 23, 59, 59, tzinfo=timezone.utc)
-
-            count = self.sale_repo.count_sales(store_id=store_id, start_date=day_start, end_date=day_end)
-            sales_sum = self.sale_repo.sum_sales(store_id=store_id, start_date=day_start, end_date=day_end)
+            day_str = day.strftime("%Y-%m-%d")
+            count, sales_sum = daily_stats_map.get(day_str, (0, 0.0))
 
             results.append(
                 DailyTransactionResponse(
-                    date=day.strftime("%Y-%m-%d"),
+                    date=day_str,
                     transactions_count=count,
                     total_sales=round(sales_sum, 2),
                 )
             )
 
         return results
+

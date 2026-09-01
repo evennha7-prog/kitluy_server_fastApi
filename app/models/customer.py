@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -22,7 +22,9 @@ class Customer(Base):
 
     __table_args__ = (
         UniqueConstraint("store_id", "phone", name="uq_store_customer_phone"),
+        Index("ix_customers_store_active", "store_id", "is_active"),
     )
 
     store = relationship("Store", back_populates="customers")
     sales = relationship("Sale", back_populates="customer")
+
