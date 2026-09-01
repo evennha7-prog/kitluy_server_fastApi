@@ -43,7 +43,8 @@ def test_health_and_root():
 
     root_resp = client.get("/")
     assert root_resp.status_code == 200
-    assert "Multi-Tenant" in root_resp.json()["architecture"]
+    assert "Sever kitprak is running..." in root_resp.json()["message"]
+
 
 
 def test_super_admin_flow():

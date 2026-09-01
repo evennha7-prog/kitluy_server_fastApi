@@ -193,12 +193,12 @@ app.include_router(invoice_templates_router, prefix=settings.API_V1_STR)
 @app.get("/", tags=["Health"])
 def root():
     return {
-        "app": settings.PROJECT_NAME,
-        "version": settings.VERSION,
+        "message": "Sever kitprak is running...",
         "status": "online",
-        "architecture": "Multi-Tenant SaaS (Super Admin -> Store Admins -> Staff)",
+        "version": settings.VERSION,
         "docs": "/docs",
     }
+
 
 
 @app.get("/health", tags=["Health"])
